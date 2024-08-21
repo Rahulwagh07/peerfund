@@ -1,11 +1,20 @@
-require('dotenv').config();
+import { HardhatUserConfig } from "hardhat/config";
+import "@nomiclabs/hardhat-ethers";
+import "dotenv/config"; 
 
-module.exports = {
-  solidity: "0.8.24",
+const config: HardhatUserConfig = {
+  solidity: "0.8.24",  
   networks: {
     sepolia: {
-      url: process.env.ALCHEMY_SEPOLIA_URL,
-      accounts: [process.env.ACCOUNT_PRIVATE_KEY]
+      url:  process.env.ALCHEMY_SEPOLIA_URL,
+      accounts: [process.env.ACCOUNT_PRIVATE_KEY!]
+    },
+    ganache: {
+      url: "http://127.0.0.1:8545",   
+      accounts: [process.env.GANACHE_ACCOUNT_PRIVATE_KEY!]   
     }
-  }
+  },
+   
 };
+
+export default config;
