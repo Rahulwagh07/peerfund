@@ -8,23 +8,24 @@ contract PeerToPeerLending {
 
     struct Loan {
         address borrower;
+        address lender;
         uint256 amount;
-        address mortgageAddress;
+        string mortgageCID;
         uint256 dueDate;
         LoanStatus status;
     }
 
-    Loan[] public allLoans;  // Array to store all loan requests
+    Loan[] public allLoans;
     mapping(address => AccountType) public accountTypes;
     mapping(address => Loan[]) public borrowerLoans;
     mapping(address => Loan[]) public lenderLoans;
 
-    event LoanRequested(address indexed borrower, uint256 amount, address mortgageAddress, uint256 dueDate);
+    event LoanRequested(address indexed borrower, uint256 amount, string mortgageCID, uint256 dueDate);
     event LoanFunded(address indexed lender, address indexed borrower, uint256 amount);
     event LoanRepaid(address indexed borrower, address indexed lender, uint256 amount);
 
     // Borrower requests a loan
-    function requestLoan(uint256 _amount, address _mortgageAddress, uint256 _dueDate) external {
+    function requestLoan(uint256 _amount, string memory _mortgageCID, uint256 _dueDate) external {
         require(_amount > 0, "Loan amount must be greater than 0");
         require(_dueDate > block.timestamp, "Due date must be in the future");
 
@@ -36,16 +37,17 @@ contract PeerToPeerLending {
         // Create the loan request
         Loan memory newLoan = Loan({
             borrower: msg.sender,
+            lender: address(0), // No lender at the time of request
             amount: _amount,
-            mortgageAddress: _mortgageAddress,
+            mortgageCID: _mortgageCID,   
             dueDate: _dueDate,
             status: LoanStatus.Requested
         });
 
         borrowerLoans[msg.sender].push(newLoan);
-        allLoans.push(newLoan);  // Add to the allLoans array
+        allLoans.push(newLoan);   
 
-        emit LoanRequested(msg.sender, _amount, _mortgageAddress, _dueDate);
+        emit LoanRequested(msg.sender, _amount, _mortgageCID, _dueDate);
     }
 
     // Lender funds the loan
@@ -60,6 +62,7 @@ contract PeerToPeerLending {
         }
 
         loan.status = LoanStatus.Funded;
+        loan.lender = msg.sender;
         lenderLoans[msg.sender].push(loan);
 
         // Transfer the loan amount to the borrower
@@ -77,23 +80,48 @@ contract PeerToPeerLending {
         loan.status = LoanStatus.Repaid;
 
         // Transfer the repayment amount to the lender
-        payable(loan.borrower).transfer(msg.value);
+        payable(loan.lender).transfer(msg.value);
 
-        emit LoanRepaid(msg.sender, loan.borrower, msg.value);
+        emit LoanRepaid(msg.sender, loan.lender, msg.value);
     }
 
-    // Get all loan requests for the "Explore" page
+    // Get all loan requests 
     function getAllLoans() external view returns (Loan[] memory) {
         return allLoans;
     }
 
-    // Get borrower's loan details
-    function getBorrowerLoans(address _borrower) external view returns (Loan[] memory) {
-        return borrowerLoans[_borrower];
+    function getAccountDetails(address _account) external view returns (
+        uint8 accountType,
+        uint256 borrowerLoanCount,
+        uint256 lenderLoanCount
+    ) {
+        accountType = uint8(accountTypes[_account]);
+        borrowerLoanCount = borrowerLoans[_account].length;
+        lenderLoanCount = lenderLoans[_account].length;
     }
 
-    // Get lender's loan details
-    function getLenderLoans(address _lender) external view returns (Loan[] memory) {
-        return lenderLoans[_lender];
+    //function to get a specific borrower loan details
+    function getBorrowerLoan(address _borrower, uint256 _index) external view returns (
+        uint256 amount,
+        string memory mortgageCID,
+        uint256 dueDate,
+        LoanStatus status
+    ) {
+        require(_index < borrowerLoans[_borrower].length, "Loan index out of bounds");
+        Loan storage loan = borrowerLoans[_borrower][_index];
+        return (loan.amount, loan.mortgageCID, loan.dueDate, loan.status);
+    }
+
+    //function To get a specific lender loan details
+    function getLenderLoan(address _lender, uint256 _index) external view returns (
+        address borrower,
+        uint256 amount,
+        string memory mortgageCID,
+        uint256 dueDate,
+        LoanStatus status
+    ) {
+        require(_index < lenderLoans[_lender].length, "Loan index out of bounds");
+        Loan storage loan = lenderLoans[_lender][_index];
+        return (loan.borrower, loan.amount, loan.mortgageCID, loan.dueDate, loan.status);
     }
 }

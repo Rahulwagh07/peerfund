@@ -7,9 +7,11 @@ async function main() {
 
   // Get the contract factory
   const PeerToPeerLending = await ethers.getContractFactory("PeerToPeerLending");
-
   // Deploy the contract
-  const p2pLending = await PeerToPeerLending.deploy();
+  const p2pLending =   await PeerToPeerLending.deploy({
+    gasPrice: 20000000000, // Set a reasonable gas price (20 Gwei)
+    gasLimit: 5000000,     // Set a reasonable gas limit
+  });
 
   // Wait for the deployment to be mined
   await p2pLending.deployed();

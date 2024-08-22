@@ -5,6 +5,9 @@ import Appbar from "@/components/Appbar";
 import { Inter as FontSans } from "next/font/google"
  
 import { cn } from "@/lib/utils"
+import { WalletProvider } from "@/context/WalletContext";
+import { ThemeProvider } from "@/components/ThemeProvider";
+import {Toaster} from "react-hot-toast"
  
 const fontSans = FontSans({
   subsets: ["latin"],
@@ -24,11 +27,21 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body  className={cn(
-          "min-h-screen bg-background font-sans antialiased",
+          "min-h-screen  font-sans ",
           fontSans.variable
         )}>
-        <Appbar/>
-        {children}
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <WalletProvider>
+          <Toaster/>
+          <Appbar/>
+          {children}
+        </WalletProvider>
+        </ThemeProvider>
         </body>
     </html>
   );
