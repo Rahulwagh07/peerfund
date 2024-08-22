@@ -65,6 +65,10 @@ contract PeerToPeerLending {
         loan.lender = msg.sender;
         lenderLoans[msg.sender].push(loan);
 
+        // Update the corresponding loan in borrowerLoans
+        borrowerLoans[loan.borrower][_loanIndex].status = LoanStatus.Funded;
+        borrowerLoans[loan.borrower][_loanIndex].lender = msg.sender;
+        
         // Transfer the loan amount to the borrower
         payable(loan.borrower).transfer(msg.value);
 
