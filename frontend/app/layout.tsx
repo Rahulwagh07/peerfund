@@ -8,7 +8,7 @@ import { config } from "@/wagmi/index";
 import { headers } from "next/headers";
 import Providers from "@/context";
 import { cookieToInitialState } from "wagmi";
-import {Appbar} from "@/components/appbar";
+import { Appbar } from "../components/appbar"
 
 const fontSans = FontSans({
   subsets: ["latin"],
