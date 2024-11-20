@@ -8,7 +8,7 @@ import { config } from "@/wagmi/index";
 import { headers } from "next/headers";
 import Providers from "@/context";
 import { cookieToInitialState } from "wagmi";
-import { Appbar } from "../components/appbar"
+import  Appbar  from "@/components/appbar";
 
 const fontSans = FontSans({
   subsets: ["latin"],
@@ -20,12 +20,12 @@ export const metadata: Metadata = {
   description: "Peer to peer lending network",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const headersList = headers();
+  const headersList = await headers()
   const initialState = cookieToInitialState(
     config,
     headersList.get('cookie')
