@@ -7,7 +7,7 @@ import WalletButton from "./connect-wallet";
 import { useAccount } from "wagmi";
 import { Menu, X } from "lucide-react";
 
-function Appbar() {
+export function Appbar() {
   const pathname = usePathname();
   const { address, isConnected } = useAccount();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -99,5 +99,4 @@ function Appbar() {
     </header>
   );
 }
-
-export default Appbar;
+ 

@@ -20,7 +20,7 @@ import {
 } from "@/lib/utils";
 import RepayLoanModal from "@/components/repay-loan";
 import { ABI } from "@/lib/constant";
-import Loader from "@/components/loadet";
+import {Loader} from "@/components/loader";
 import NotConnected from "@/components/not-connected";
 
 const AccountDashboard: React.FC = () => {
@@ -50,7 +50,7 @@ const AccountDashboard: React.FC = () => {
   }
 
   const [accountType, loans] = accountDetails as [AccountType, Loan[]];
-  
+
   const handleShowLoanDetails = (loan: Loan) => {
     setSelectedLoan(loan);
     setIsDialogOpen(true);

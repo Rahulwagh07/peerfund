@@ -4,7 +4,7 @@ interface LoaderProps {
   size?: "small" | "medium" | "large";
 }
 
-export default function Loader({ size = "medium" }: LoaderProps) {
+export function Loader({ size = "medium" }: LoaderProps) {
   const sizeClasses = {
     small: "w-8 h-8 p-1",
     medium: "w-12 h-12 p-2",

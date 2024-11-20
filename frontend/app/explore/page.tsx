@@ -12,7 +12,7 @@ import LoanDetailModal from "@/components/fund-laon"
 import { useReadContract } from 'wagmi'
 import { formatEther } from 'viem'
 import { Loan, LoanStatus } from "@/types"
-import Loader from "@/components/loadet"
+import {Loader} from "@/components/loader"
 import { formatAddress } from "@/lib/utils"
 
 const ExploreLoanPage = () => {

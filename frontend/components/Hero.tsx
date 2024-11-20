@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
-export default function Hero() {
+export function Hero() {
   return (
     <div className="relative overflow-hidden py-16 -mt-4 lg:py-12">
       <div
