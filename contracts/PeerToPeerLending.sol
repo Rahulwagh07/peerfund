@@ -2,130 +2,207 @@
 pragma solidity ^0.8.24;
 
 contract PeerToPeerLending {
-    
-    enum AccountType { None, Lender, Borrower }
-    enum LoanStatus { Requested, Funded, Repaid }
+    enum AccountType {
+        None,
+        Lender,
+        Borrower
+    }
+    enum LoanStatus {
+        Requested,
+        Funded,
+        Closed,
+        Defaulted
+    }
 
     struct Loan {
+        uint256 index;
         address borrower;
         address lender;
         uint256 amount;
         string mortgageCID;
         uint256 dueDate;
         LoanStatus status;
+        uint256 requestDate;
+        uint256 fundDate;
+        uint256 repayDate;
+        uint256 interestAccrued;
+        bool isRepaid;
     }
 
-    Loan[] public allLoans;
-    mapping(address => AccountType) public accountTypes;
-    mapping(address => Loan[]) public borrowerLoans;
-    mapping(address => Loan[]) public lenderLoans;
+    struct UserAccount {
+        AccountType accountType;
+        uint256 loanCount;
+        uint256[] loanIndices;
+    }
 
-    event LoanRequested(address indexed borrower, uint256 amount, string mortgageCID, uint256 dueDate);
-    event LoanFunded(address indexed lender, address indexed borrower, uint256 amount);
-    event LoanRepaid(address indexed borrower, address indexed lender, uint256 amount);
+    mapping(address => UserAccount) public userAccounts;
+    mapping(uint256 => Loan) public loans;
+    uint256 public loanCounter;
+    address[] public borrowers;
 
-    // Borrower requests a loan
-    function requestLoan(uint256 _amount, string memory _mortgageCID, uint256 _dueDate) external {
-        require(_amount > 0, "Loan amount must be greater than 0");
-        require(_dueDate > block.timestamp, "Due date must be in the future");
+    uint256 constant ANNUAL_INTEREST_RATE = 20;
+    uint256 constant MAX_LOANS = 5;
 
-        // Set account type as Borrower if not already set
-        if (accountTypes[msg.sender] == AccountType.None) {
-            accountTypes[msg.sender] = AccountType.Borrower;
-        }
+    event LoanRequested(
+        uint256 indexed loanIndex,
+        address indexed borrower,
+        uint256 amount,
+        string mortgageCID,
+        uint256 dueDate
+    );
+    event LoanFunded(
+        uint256 indexed loanIndex,
+        address indexed lender,
+        address indexed borrower,
+        uint256 amount,
+        uint256 fundDate
+    );
+    event LoanRepaid(
+        uint256 indexed loanIndex,
+        address indexed borrower,
+        address indexed lender,
+        uint256 amount,
+        uint256 interestAccrued
+    );
 
-        // Create the loan request
-        Loan memory newLoan = Loan({
+    error InvalidAmount();
+    error InvalidDueDate();
+    error LoanNotFundable();
+    error LoanNotRepayable();
+    error MaxLoansReached();
+    error CannotLendAsBorrower();
+    error CannotBorrowAsLender();
+
+    function requestLoan(
+        uint256 _amount,
+        string memory _mortgageCID,
+        uint256 _dueDate
+    ) external {
+        if (_amount == 0) revert InvalidAmount();
+        if (_dueDate <= block.timestamp) revert InvalidDueDate();
+
+        UserAccount storage userAccount = userAccounts[msg.sender];
+        if (userAccount.accountType == AccountType.Lender)
+            revert CannotBorrowAsLender();
+
+        if (userAccount.loanCount >= MAX_LOANS) revert MaxLoansReached();
+
+        loans[loanCounter] = Loan({
+            index: loanCounter,
             borrower: msg.sender,
-            lender: address(0), // No lender at the time of request
+            lender: address(0),
             amount: _amount,
-            mortgageCID: _mortgageCID,   
+            mortgageCID: _mortgageCID,
             dueDate: _dueDate,
-            status: LoanStatus.Requested
+            status: LoanStatus.Requested,
+            requestDate: block.timestamp,
+            fundDate: 0,
+            repayDate: 0,
+            interestAccrued: 0,
+            isRepaid: false
         });
 
-        borrowerLoans[msg.sender].push(newLoan);
-        allLoans.push(newLoan);   
-
-        emit LoanRequested(msg.sender, _amount, _mortgageCID, _dueDate);
-    }
-
-    // Lender funds the loan
-    function fundLoan(uint256 _loanIndex) external payable {
-        Loan storage loan = allLoans[_loanIndex];
-        require(loan.status == LoanStatus.Requested, "Loan is not in a fundable state");
-        require(msg.value == loan.amount, "Incorrect loan amount sent");
-
-        // Set account type as Lender if not already set
-        if (accountTypes[msg.sender] == AccountType.None) {
-            accountTypes[msg.sender] = AccountType.Lender;
+        userAccount.loanIndices.push(loanCounter);
+        userAccount.loanCount++;
+        if (userAccount.accountType == AccountType.None) {
+            userAccount.accountType = AccountType.Borrower;
+            borrowers.push(msg.sender);
         }
 
-        loan.status = LoanStatus.Funded;
-        loan.lender = msg.sender;
-        lenderLoans[msg.sender].push(loan);
+        emit LoanRequested(
+            loanCounter,
+            msg.sender,
+            _amount,
+            _mortgageCID,
+            _dueDate
+        );
+        loanCounter++;
+    }
 
-        // Update the corresponding loan in borrowerLoans
-        borrowerLoans[loan.borrower][_loanIndex].status = LoanStatus.Funded;
-        borrowerLoans[loan.borrower][_loanIndex].lender = msg.sender;
-        
-        // Transfer the loan amount to the borrower
+    function fundLoan(uint256 loanIndex) external payable {
+        Loan storage loan = loans[loanIndex];
+
+        if (loan.status != LoanStatus.Requested) revert LoanNotFundable();
+        if (msg.value != loan.amount) revert InvalidAmount();
+
+        UserAccount storage userAccount = userAccounts[msg.sender];
+
+        if (userAccount.accountType == AccountType.None) {
+            userAccount.accountType = AccountType.Lender;
+        } else if (userAccount.accountType == AccountType.Borrower) {
+            revert CannotLendAsBorrower();
+        }
+
+        loan.lender = msg.sender;
+        loan.status = LoanStatus.Funded;
+        loan.fundDate = block.timestamp;
+
+        userAccount.loanIndices.push(loanIndex);
+        userAccount.loanCount++;
+
         payable(loan.borrower).transfer(msg.value);
 
-        emit LoanFunded(msg.sender, loan.borrower, msg.value);
+        emit LoanFunded(
+            loanIndex,
+            msg.sender,
+            loan.borrower,
+            msg.value,
+            block.timestamp
+        );
     }
 
-    // Borrower repays the loan
-    function repayLoan(uint256 _loanIndex) external payable {
-        Loan storage loan = borrowerLoans[msg.sender][_loanIndex];
-        require(loan.status == LoanStatus.Funded, "Loan is not in a repayable state");
-        require(msg.value == loan.amount, "Incorrect repayment amount sent");
+    function repayLoan(uint256 loanIndex) external payable {
+        Loan storage loan = loans[loanIndex];
 
-        loan.status = LoanStatus.Repaid;
+        if (loan.status != LoanStatus.Funded) revert LoanNotRepayable();
+        if (msg.sender != loan.borrower) revert InvalidAmount();
 
-        // Transfer the repayment amount to the lender
+        uint256 timeElapsed = block.timestamp - loan.fundDate;
+        uint256 SECONDS_PER_YEAR = 365 * 24 * 60 * 60;
+        uint256 PRECISION = 1e18;
+        uint256 timeInYears = (timeElapsed * PRECISION) / SECONDS_PER_YEAR;
+        uint256 interest = (loan.amount * ANNUAL_INTEREST_RATE * timeInYears) /
+            (100 * PRECISION);
+
+        uint256 totalRepayment = loan.amount + interest;
+
+        loan.status = LoanStatus.Closed;
+        loan.interestAccrued = interest;
+        loan.repayDate = block.timestamp;
+        loan.isRepaid = true;
+
         payable(loan.lender).transfer(msg.value);
 
-        emit LoanRepaid(msg.sender, loan.lender, msg.value);
+        emit LoanRepaid(
+            loanIndex,
+            loan.borrower,
+            loan.lender,
+            totalRepayment,
+            interest
+        );
     }
 
-    // Get all loan requests 
-    function getAllLoans() external view returns (Loan[] memory) {
+    function getAccountDetails(
+        address _user
+    ) external view returns (AccountType accountType, Loan[] memory userLoans) {
+        UserAccount storage userAccount = userAccounts[_user];
+
+        uint256 loanCount = userAccount.loanCount;
+        uint256[] memory indices = userAccount.loanIndices;
+        userLoans = new Loan[](loanCount);
+
+        for (uint256 i = 0; i < loanCount; i++) {
+            userLoans[i] = loans[indices[i]];
+        }
+
+        return (userAccount.accountType, userLoans);
+    }
+
+    function getAllLoans() external view returns (Loan[] memory allLoans) {
+        allLoans = new Loan[](loanCounter);
+        for (uint256 i = 0; i < loanCounter; i++) {
+            allLoans[i] = loans[i];
+        }
         return allLoans;
-    }
-
-    function getAccountDetails(address _account) external view returns (
-        uint8 accountType,
-        uint256 borrowerLoanCount,
-        uint256 lenderLoanCount
-    ) {
-        accountType = uint8(accountTypes[_account]);
-        borrowerLoanCount = borrowerLoans[_account].length;
-        lenderLoanCount = lenderLoans[_account].length;
-    }
-
-    //function to get a specific borrower loan details
-    function getBorrowerLoan(address _borrower, uint256 _index) external view returns (
-        uint256 amount,
-        string memory mortgageCID,
-        uint256 dueDate,
-        LoanStatus status
-    ) {
-        require(_index < borrowerLoans[_borrower].length, "Loan index out of bounds");
-        Loan storage loan = borrowerLoans[_borrower][_index];
-        return (loan.amount, loan.mortgageCID, loan.dueDate, loan.status);
-    }
-
-    //function To get a specific lender loan details
-    function getLenderLoan(address _lender, uint256 _index) external view returns (
-        address borrower,
-        uint256 amount,
-        string memory mortgageCID,
-        uint256 dueDate,
-        LoanStatus status
-    ) {
-        require(_index < lenderLoans[_lender].length, "Loan index out of bounds");
-        Loan storage loan = lenderLoans[_lender][_index];
-        return (loan.borrower, loan.amount, loan.mortgageCID, loan.dueDate, loan.status);
     }
 }

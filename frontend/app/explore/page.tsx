@@ -1,152 +1,146 @@
-"use client";
-import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PeerToPeerLendingContractAddress } from "@/config";
-import abi from "../../lib/LendingContract.json";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-import { useWallet } from "@/context/WalletContext";
-import ConnectWallet from "@/components/ConnectWallet";
-import { Button } from "@/components/ui/button";
-import LoanDetailModal from "@/components/LoanDetailModal";
+'use client'
 
-const contractABI = abi;
-const contractAddress = PeerToPeerLendingContractAddress;
+import React, { useState, useEffect } from "react"
+import {CardContent} from "@/components/ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { CONTRACT_ADDRESS } from "@/lib/constant"
+import { ABI } from "@/lib/constant"
+import { ToastContainer, toast } from "react-toastify"
+import "react-toastify/dist/ReactToastify.css"
+import { Button } from "@/components/ui/button"
+import LoanDetailModal from "@/components/fund-laon"
+import { useReadContract } from 'wagmi'
+import { formatEther } from 'viem'
+import { Loan, LoanStatus } from "@/types"
+import Loader from "@/components/loadet"
+import { formatAddress } from "@/lib/utils"
 
-interface Loan {
-  index: number;
-  borrower: string;
-  amount: string;
-  mortgageCID: string;
-  dueDate: string;
-  status: string;
-}
+const ExploreLoanPage = () => {
+  const [loans, setLoans] = useState<Loan[]>([])
+  const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null)
+  const [activeTab, setActiveTab] = useState('all')
 
-const Page = () => {
-  const { web3, currentAccount } = useWallet();
-  const [loans, setLoans] = useState<Loan[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
+  const { data: loansData, isLoading, isError } = useReadContract({
+    address: CONTRACT_ADDRESS,
+    abi: ABI,
+    functionName: 'getAllLoans'
+  })
 
- 
-const fetchLoans = async () => {
-    if (!web3) {
-        setError("Web3 not initialized");
-        setIsLoading(false);
-        return;
+  useEffect(() => {   
+    if (loansData) {
+      setLoans(loansData as Loan[])
     }
-
-    try {
-        const contract = new web3.eth.Contract(contractABI.abi, contractAddress);
-        const fetchedLoans = await contract.methods.getAllLoans().call();
-
-        const formattedLoans = fetchedLoans?.map((loan: any, index: number) => ({
-            index,  
-            borrower: loan.borrower,
-            amount: web3.utils.fromWei(loan.amount, "ether"),
-            mortgageCID: loan.mortgageCID,
-            dueDate: new Date(Number(loan.dueDate) * 1000).toLocaleDateString(),
-            status: ["Requested", "Funded", "Repaid"][Number(loan.status)]
-        }));
-
-        setLoans(formattedLoans!);
-    } catch (err: any) {
-        console.error("Error fetching loans:", err);
-        setError(err.message);
-        toast.error(`Failed to fetch loans: ${err.message}`);
-    } finally {
-        setIsLoading(false);
+    
+    if (isError) {
+      toast.error("Error fetching loans")
     }
-};
-  useEffect(() => {
-    if (web3 && currentAccount) {
-      fetchLoans();
-    }
-  }, [web3, currentAccount]);
+  }, [loansData, isError])
 
   const handleViewDetails = (loan: Loan) => {
-    setSelectedLoan(loan);
-  };
-
-  const handleCloseModal = () => {
-    setSelectedLoan(null);
-  };
-
-  if (!currentAccount) {
-    return (
-      <div className="flex flex-col items-center justify-center">
-       <Card>
-          <CardHeader>
-            <CardTitle>You are not connected!</CardTitle>
-            <CardDescription>Connet your wallet to get started</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ConnectWallet/>
-          </CardContent>
-         </Card>
-      </div>
-    );
+    setSelectedLoan(loan)
   }
 
+  const handleCloseModal = () => {
+    setSelectedLoan(null)
+  }
+
+  const tabs = [
+    { value: 'all', label: 'All Loans' },
+    { value: 'requested', label: 'Requested' },
+    { value: 'funded', label: 'Funded' },
+    { value: 'closed', label: 'Closed' },
+    { value: 'defaulted', label: 'Defaulted' }
+  ]
+
+  const getFilteredLoans = (status?: LoanStatus) => {
+    return status !== undefined 
+      ? loans.filter(loan => loan.status === status)
+      : loans
+  }
+
+  const renderTable = (filteredLoans: Loan[]) => (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Borrower</TableHead>
+          <TableHead>Lender</TableHead>
+          <TableHead>Amount (ETH)</TableHead>
+          <TableHead>Mortgage CID</TableHead>
+          <TableHead>Due Date</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead>Actions</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {filteredLoans.map((loan, index) => (
+          <TableRow key={index}>
+            <TableCell>{formatAddress(loan.borrower)}</TableCell>
+            <TableCell>{formatAddress(loan.lender)}</TableCell>
+            <TableCell>{formatEther(loan.amount)} ETH</TableCell>
+            <TableCell>{formatAddress(loan.mortgageCID)}</TableCell>
+            <TableCell>{new Date(Number(loan.dueDate) * 1000).toLocaleDateString()}</TableCell>
+            <TableCell>{LoanStatus[loan.status]}</TableCell>
+            <TableCell>
+              <Button onClick={() => handleViewDetails(loan)}>
+                View Details
+              </Button>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  )
+
   return (
-    <div className="container mx-auto p-4">
+    <div className="w-full mx-auto p-4">
       <ToastContainer />
-      <Card>
-        <CardHeader>
-          <CardTitle>Explore Loans</CardTitle>
-          <CardDescription>View all available loan requests on the platform</CardDescription>
-        </CardHeader>
+      <div>
         <CardContent>
           {isLoading ? (
-            <p>Loading loans...</p>
-          ) : error ? (
-            <p className="text-red-500">{error}</p>
+              <Loader size="small"/>
           ) : (
             <>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Borrower</TableHead>
-                  <TableHead>Amount (ETH)</TableHead>
-                  <TableHead>Mortgage CID</TableHead>
-                  <TableHead>Due Date</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loans.map((loan, index) => (
-                  <TableRow key={index}>
-                    <TableCell>{loan.borrower}</TableCell>
-                    <TableCell>{loan.amount}</TableCell>
-                    <TableCell>{loan.mortgageCID}</TableCell>
-                    <TableCell>{loan.dueDate}</TableCell>
-                    <TableCell>{loan.status}</TableCell>
-                    <TableCell>
-                        <Button
-                          onClick={() => handleViewDetails(loan)}
-                        >
-                          View Details
-                        </Button>
-                      </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-             {selectedLoan && (
-              <LoanDetailModal
-                loan={selectedLoan}
-                onClose={handleCloseModal}
-              />
-            )} 
+              <div className="hidden sm:flex justify-center mb-6">
+                <div className="flex space-x-1 p-1 sm:p-2 bg-slate-800 rounded-full border border-gray-700 shadow-lg">
+                  {tabs.map((tab) => (
+                    <button
+                      key={tab.value}
+                      onClick={() => setActiveTab(tab.value)}
+                      className={`
+                       px-2 py-1 sm:px-4 sm:py-2 rounded-full text-sm font-medium
+                        transition-all duration-300 ease-in-out
+                        ${activeTab === tab.value 
+                          ? 'bg-blue-600 text-white shadow-md' 
+                          : 'text-gray-300 hover:bg-gray-700 hover:text-gray-100'}
+                        focus:outline-none
+                        transform hover:scale-105
+                      `}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+      
+              {activeTab === 'all' && renderTable(getFilteredLoans())}
+              {activeTab === 'requested' && renderTable(getFilteredLoans(LoanStatus.Requested))}
+              {activeTab === 'funded' && renderTable(getFilteredLoans(LoanStatus.Funded))}
+              {activeTab === 'closed' && renderTable(getFilteredLoans(LoanStatus.Closed))}
+              {activeTab === 'defaulted' && renderTable(getFilteredLoans(LoanStatus.Defaulted))}
+
+              {selectedLoan && (
+                <LoanDetailModal
+                  loan={selectedLoan}
+                  onClose={handleCloseModal}
+                />
+              )}
             </>
           )}
         </CardContent>
-      </Card>
+      </div>
     </div>
-  );
-};
+  )
+}
 
-export default Page;
+export default ExploreLoanPage

@@ -1,25 +1,35 @@
 import { ethers } from "hardhat";
 
 async function main() {
-  // Get the deployer's signer
   const [deployer] = await ethers.getSigners();
   console.log("Deploying contracts with the account:", deployer.address);
 
-  // Get the contract factory
   const PeerToPeerLending = await ethers.getContractFactory("PeerToPeerLending");
-  // Deploy the contract
-  const p2pLending =   await PeerToPeerLending.deploy({
-    gasPrice: 20000000000, // Set a reasonable gas price (20 Gwei)
-    gasLimit: 5000000,     // Set a reasonable gas limit
-  });
+ 
+  const network = await ethers.provider.getNetwork();
+  console.log("Network:", network.name);
 
-  // Wait for the deployment to be mined
+  let p2pLending;
+
+  if (network.chainId === 1337) {
+    console.log("Network is ganache")
+    p2pLending = await PeerToPeerLending.deploy({
+      gasLimit: 5000000, 
+    });
+  } else if (network.name === "sepolia") {
+    p2pLending = await PeerToPeerLending.deploy({
+      gasPrice: ethers.utils.parseUnits('20', 'gwei'),  
+      gasLimit: 5000000, 
+    });
+  } else {
+    throw new Error("Unsupported network");
+  }
+
   await p2pLending.deployed();
 
   console.log("PeerToPeerLending contract deployed to:", p2pLending.address);
 }
 
-// Execute the main function and handle errors
 main()
   .then(() => process.exit(0))
   .catch((error) => {

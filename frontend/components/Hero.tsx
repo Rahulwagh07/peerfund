@@ -27,7 +27,7 @@ export default function Hero() {
               </p>
             </div>
             <div className="mt-8 gap-3 flex justify-center">
-            <Link href={"/borrow"}>
+            <Link href={"/request"}>
                 <Button size={"lg"}> Request for Loan</Button>
             </Link>
             <Link href={"/explore"}>
