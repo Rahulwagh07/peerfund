@@ -71,12 +71,13 @@ export default function LoanRequest() {
       toast.error(`Transaction failed`)
     }
   }
-
+ 
   useEffect(() => {
     if (isConfirmed) {
       toast.success("Loan request submitted!")
       router.push(`/account/${address}`)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConfirmed])
 
   return (

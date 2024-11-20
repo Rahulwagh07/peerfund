@@ -63,7 +63,7 @@ const AccountDashboard: React.FC = () => {
     <div className="container mx-auto p-4">
       {AccountType[accountType] === "None" ? (
         <CardDescription className="text-center text-xl dark:text-white mt-20">
-          You don't have any Transaction!
+          You don&apos;t have any Transaction!
         </CardDescription>
       ) : (
         <>

@@ -22,7 +22,6 @@ import { ABI } from "@/lib/constant"
 import { Loan } from "@/types"
 import { calculateInterest } from "@/lib/utils"
 import toast from "react-hot-toast"
-import { useRouter } from "next/navigation"
 
 interface RepayLoanModalProps {
   loan: Loan
@@ -36,7 +35,6 @@ export default function RepayLoanModal({
   onClose,
 }: RepayLoanModalProps) {
   const { address, isConnected } = useAccount()
-  const router = useRouter()
   const { data: hash, isPending, writeContract } = useWriteContract()
 
   const { isLoading: isConfirming, isSuccess: isConfirmed } =
@@ -64,7 +62,7 @@ export default function RepayLoanModal({
         args: [BigInt(loan.index)],
         value: totalRepayment,
       })
-    } catch (error) {
+    } catch (_error) {
       toast.error("Transaction failed to repay loan")
     }
   }
@@ -74,6 +72,7 @@ export default function RepayLoanModal({
       toast.success("Loan Repaid successfully!")
       onClose()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConfirmed])
 
   const calculatedInterest = calculateInterest(

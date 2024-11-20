@@ -71,6 +71,7 @@ export default function FundLoanModal({ loan, onClose }: FundLoanModalModalProps
       toast.success("Loan funded successfully!")
       router.push(`/account/${address}`)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConfirmed])
 
   return (
