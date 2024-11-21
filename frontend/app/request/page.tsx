@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { DatePicker } from "@/components/date-picker"
 import { Button } from "@/components/ui/button"
-import { CONTRACT_ADDRESS } from "@/lib/constant"
+import { CID_REGEX, CONTRACT_ADDRESS } from "@/lib/constant"
 import { ABI } from "@/lib/constant"
 import { ToastContainer, toast } from "react-toastify"
 import "react-toastify/dist/ReactToastify.css"
@@ -20,6 +20,7 @@ export default function LoanRequest() {
   const [amount, setAmount] = useState("")
   const [mortgageCID, setMortgageCID] = useState("")
   const [selectedDate, setSelectedDate] = useState<Date | undefined>()
+  const [isValidCID, setIsValidCID] = useState(true);
   const router = useRouter()
   const { 
     data: hash,
@@ -31,7 +32,14 @@ export default function LoanRequest() {
   const { isLoading: isConfirming, isSuccess: isConfirmed } = 
   useWaitForTransactionReceipt({ 
     hash, 
-})
+  })
+
+  const handleChange = (event: React.ChangeEvent<HTMLInputElement>): void  => {
+    const value = event.target.value;
+    setMortgageCID(value);
+    setIsValidCID(CID_REGEX.test(value));
+  }
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
     if (!isConnected || !address) {
@@ -52,6 +60,10 @@ export default function LoanRequest() {
 
     if (isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
       toast.error("Please enter a valid loan amount")
+      return
+    }
+
+    if(!CID_REGEX.test(mortgageCID)){
       return
     }
 
@@ -110,11 +122,13 @@ export default function LoanRequest() {
                   <Label htmlFor="mortgageCID">Add Mortgage</Label>
                   <Input
                     id="mortgageCID"
-                    placeholder="Enter Mortgage CID"
+                    type="text"
+                    placeholder="Enter IPFS CID"
                     value={mortgageCID}
-                    onChange={(e) => setMortgageCID(e.target.value)}
+                    onChange={handleChange}
                     required
                   />
+                   {!isValidCID && <p className="text-red-500 text-sm">Please enter a valid IPFS CID</p>}
                 </div>
                 <div className="flex flex-col space-y-2.5 w-full">
                   <Label htmlFor="dueDate">Pick a Due Date</Label>

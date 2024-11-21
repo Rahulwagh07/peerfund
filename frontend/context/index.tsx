@@ -2,7 +2,7 @@
 
 import { wagmiAdapter, projectId } from "../wagmi/index"
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { mainnet, arbitrum, avalanche, base, optimism, polygon, sepolia} from '@reown/appkit/networks';
+import { sepolia} from '@reown/appkit/networks';
 import React, { type ReactNode } from 'react';
 import { WagmiProvider, type Config } from 'wagmi';
 import { createExtendedAppKit, ganache } from "@/wagmi/appkit-extension";
@@ -20,10 +20,10 @@ if (!projectId) {
 //   icons: ['https://assets.reown.com/reown-profile-pic.png']
 // };
 
-const modal = createExtendedAppKit({
+createExtendedAppKit({
   adapters: [wagmiAdapter],
   projectId,
-  networks: [mainnet, arbitrum, avalanche, base, optimism, polygon, sepolia, ganache],
+  networks: [sepolia, ganache],
   defaultNetwork: sepolia,
   // metadata: metadata,
   features: {
